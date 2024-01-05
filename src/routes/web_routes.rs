@@ -6,7 +6,9 @@ struct LinkResponse {
     long_url: String,
 }
 pub fn get_routes() -> Router {
-    Router::new().route("/*path", get(get_another_page))
+    Router::new()
+        .route("/", get(Redirect::to("https://linkshrtnr.com")))
+        .route("/*path", get(get_another_page))
 }
 async fn get_another_page(ctx: Extension<ApiContext>, Path(path): Path<String>) -> Redirect {
     let link = match extract_link(path, &ctx.db).await {
