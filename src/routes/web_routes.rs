@@ -1,9 +1,12 @@
 use axum::{extract::Path, response::Redirect, routing::get, Extension, Router};
 use sqlx::{Error, PgPool, Row};
+use tracing::info;
 
 use crate::http::ApiContext;
+
+#[derive(Debug, sqlx::FromRow)]
 struct LinkResponse {
-    long_url: String,
+    original_url: String,
 }
 pub fn get_routes() -> Router {
     Router::new()
@@ -15,15 +18,11 @@ async fn get_another_page(ctx: Extension<ApiContext>, Path(path): Path<String>) 
         Ok(link) => link,
         Err(_) => return Redirect::to("https://linkshrtnr.com/404"),
     };
-    Redirect::temporary(link.long_url.as_str())
+    Redirect::temporary(&link.original_url.as_str())
 }
 
 async fn extract_link(path: String, pool: &PgPool) -> Result<LinkResponse, Error> {
     let q = "SELECT * FROM links WHERE short_url = $1";
-    let link = sqlx::query(q).bind(path).fetch_one(pool).await?;
-
-    let link = LinkResponse {
-        long_url: link.try_get("long_url")?,
-    };
+    let link: LinkResponse = sqlx::query_as(q).bind(&path).fetch_one(pool).await?;
     Ok(link)
 }
