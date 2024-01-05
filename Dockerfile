@@ -5,7 +5,7 @@
 # https://docs.docker.com/go/dockerfile-reference/
 
 ARG RUST_VERSION=1.74.0
-ARG APP_NAME=create-trash-app
+ARG APP_NAME=linkshrtnr_service
 
 ################################################################################
 # xx is a helper for cross-compilation.
