@@ -18,7 +18,7 @@ struct LinkResponse {
 }
 pub fn get_routes() -> Router {
     Router::new()
-        .route("/", get(Redirect::to("http://localhost:3000")))
+        .route("/", get(Redirect::to("https://linkshrtnr.com/")))
         .route("/*path", get(get_another_page))
 }
 async fn get_another_page(
@@ -36,7 +36,7 @@ async fn get_another_page(
     };
     let link = match extract_link(&path, &ctx.db, addr.to_string(), header, geolocation).await {
         Ok(link) => link,
-        Err(_) => return Redirect::to("http://localhost:3000/404"),
+        Err(_) => return Redirect::to("https:linkshrtnr.com/404"),
     };
 
     Redirect::temporary(&link.original_url.as_str())
