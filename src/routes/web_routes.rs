@@ -8,8 +8,7 @@ use axum::{
     routing::get,
     Extension, Router,
 };
-use ipgeolocate::{Locator, Service};
-use sqlx::{Error, PgPool, Row};
+use sqlx::{Error, PgPool};
 use tracing::info;
 #[derive(Debug, sqlx::FromRow)]
 struct LinkResponse {
@@ -27,16 +26,15 @@ async fn get_another_page(
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
     Path(path): Path<String>,
 ) -> Redirect {
-    let service = Service::IpApi;
     info!(header = ?header, "Header");
     info!(addr = ?addr, "Address");
-    let geolocation = match Locator::get(addr.to_string().as_str(), service).await {
-        Ok(ip) => format!("{}", ip.country),
-        Err(error) => format!("Error"),
-    };
-    let link = match extract_link(&path, &ctx.db, addr.to_string(), header, geolocation).await {
+
+    let link = match extract_link(&path, &ctx.db, addr.to_string(), header).await {
         Ok(link) => link,
-        Err(_) => return Redirect::to("https:linkshrtnr.com/404"),
+        Err(err) => {
+            info!("ERROR: {:?}", err);
+            return Redirect::to("https:linkshrtnr.com/404");
+        }
     };
 
     Redirect::temporary(&link.original_url.as_str())
@@ -47,20 +45,27 @@ async fn extract_link(
     pool: &PgPool,
     addr: String,
     header: HeaderMap,
-    geolocation: String,
 ) -> Result<LinkResponse, Error> {
     let q = "SELECT * FROM links WHERE short_url = $1";
     let link: LinkResponse = sqlx::query_as(q).bind(path).fetch_one(pool).await?;
-    let q = "UPDATE linkclicks SET ClickCount = ClickCount + 1,ipaddress = $1, useragent = $2, referrer = $3,  geographiclocation = $4 WHERE linkid = $5";
+    info!(link = ?link, "Link");
+    let q = "UPDATE linkclicks SET ClickCount = ClickCount + 1,ipaddress = $1, useragent = $2, referrer = $3 WHERE linkid = $4";
+    //extract referer from header or set it to empty string
+    let mut user_agent = String::new();
+    if let Some(ua) = header.get("user-agent") {
+        user_agent = ua.to_str().unwrap().to_string();
+    }
+    let mut referer = String::new();
+    if let Some(refer) = header.get("referer") {
+        referer = refer.to_str().unwrap().to_string();
+    }
     let insertion = sqlx::query(q)
         .bind(addr.to_string())
-        .bind(header.get("user-agent").unwrap().to_str().unwrap())
-        .bind(header.get("referer").unwrap().to_str().unwrap())
-        .bind(geolocation)
+        .bind(user_agent)
+        .bind(referer)
         .bind(&link.id)
         .execute(pool)
         .await?;
     info!(insertion = ?insertion, "Insertion");
-    info!(link = ?link, "Link");
     Ok(link)
 }
