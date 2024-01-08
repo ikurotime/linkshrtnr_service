@@ -1,9 +1,9 @@
-use axum::{Extension, Router};
-use sqlx::PgPool;
-use tower::ServiceBuilder;
-
 use crate::routes;
 use anyhow::Result;
+use axum::{Extension, Router};
+use sqlx::PgPool;
+use std::net::SocketAddr;
+use tower::ServiceBuilder;
 use tracing::info;
 #[derive(Clone)]
 pub struct ApiContext {
@@ -18,7 +18,12 @@ pub async fn serve(db: PgPool) -> Result<(), anyhow::Error> {
 
     let listener = tokio::net::TcpListener::bind(&addr).await.unwrap();
     info!("router initialized, now listening on port {}", port);
-    axum::serve(listener, app).await.unwrap();
+    axum::serve(
+        listener,
+        app.into_make_service_with_connect_info::<SocketAddr>(),
+    )
+    .await
+    .unwrap();
     Ok(())
 }
 
