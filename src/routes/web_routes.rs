@@ -33,7 +33,7 @@ async fn get_another_page(
         Ok(link) => link,
         Err(err) => {
             info!("ERROR: {:?}", err);
-            return Redirect::to("https:linkshrtnr.com/404");
+            return Redirect::to("https://linkshrtnr.com/404");
         }
     };
 
